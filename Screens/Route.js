@@ -9,13 +9,10 @@ import ChangeColor from '../Screens/ChangeColor';
 import Splash from '../Screens/Splash';
 import Home from '../Screens/Home'
 import Search from '../Screens/search'
-import Logo from '../Screens/firstLogo'
 import QuastionUser from './QuastionUser'
 import Pager from './Pager'
-
+import Logo from '../Screens/firstLogo'
 const Stack = createStackNavigator({
-    
- Logo:Logo,   
  Splash:Splash,
  View: ViewScreen,
  Search:Search,

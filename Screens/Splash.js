@@ -6,13 +6,16 @@ import SQLite from 'react-native-sqlite-storage';
 
 import QuastionUser from '../Screens/QuastionUser';
 
+import Carousel from 'react-native-snap-carousel';
+
 import * as Animatable from 'react-native-animatable';
 
 import ViewScreen from './ViewScreen'
 
 var width = Dimensions.get('window').width  /2;
-const TAB_BAR_HEIGHT = 49;
-const HEADER_HEIGHT = 0;
+var Metrics = Dimensions.get('window').width;
+var Metricsh = Dimensions.get('window').height;
+
 var db;
 
 
@@ -27,6 +30,9 @@ export default class Splash extends React.Component {
            opacityFade: new Animated.Value(1),
            top:false,
            bottom:true,
+           ShowLogo: false,
+           cardsItem: [],
+           startFrom:0,
          }
     // connect with sqlite name
     db = SQLite.openDatabase({name:'islamquastions', createFromLocation: '~islamquastions.db'},  () =>{
@@ -40,37 +46,56 @@ export default class Splash extends React.Component {
   //لتعطيل العودة من خلال زر العودة في اجهزة الاندرويد   
 
  
-      GetQuastionDay(){   // select question from question table and answer from answers table جلب السؤوال والجواب بشكل عشوائي من قاعدة البيانات نتيجة واحدة فقط
-        db.transaction((tx) =>{
-          tx.executeSql("SELECT questions.title,questions.id,questions.topic_id,answers.text ,topics.fhotos,topics.id FROM questions , topics INNER JOIN answers ON questions.topic_id=topics.id AND answers.quanstion_id=questions.id  ORDER BY RANDOM() LIMIT 1", [] , (tx, results) => {
-            var len = results.rows.item(0)
-            this.setState({QuastionDay: len})
-          }, (error) => {
-            alert(error.message);
-          });
-        });
-      
+  GetQuastionDay(){   // select question from question table and answer from answers table جلب السؤوال والجواب بشكل عشوائي من قاعدة البيانات نتيجة واحدة فقط
+    db.transaction((tx) =>{
+      tx.executeSql("SELECT questions.title,questions.id AS quastionId,questions.topic_id,answers.text ,topics.fhotos,topics.id ,topics.name FROM questions , topics INNER JOIN answers ON questions.topic_id=topics.id AND answers.quanstion_id=questions.id  ORDER BY RANDOM() LIMIT 4", [] , (tx, results) => {
+      let len = results.rows.length;
+        if (len > 0){
+
+        var ret = [];
+        for(var index=0;index<results.rows.length;index++){
+            ret.push(results.rows.item(index))
         }
       
+        this.setState({cardsItem: ret, startFrom:ret.length}, () => {
+          var self = this
+          setTimeout(function(){
+           // self._carousel.snapToItem(self.state.cardsItem.length-1)
+          }, 30)
+        })
+      }
+      }, (error) => {
+        alert(error.message);
+      });
+    });
+    }
+      // اسئلة مختارة عشوائية
+      _renderItem = ({item, index}) => {
+
+        return (
+          <TouchableOpacity style={{flex:1}} onPress={() => this.props.navigation.navigate('qustions',{id:item.quastionId,name:item.name})}>
+
+          <Animatable.View animation={this.state.top ? "fadeIn" : "fadeIn"} style={styles.ContainerQuastionDay}>
+
+          <View style={styles.borderQuastion}>
+            <View style={styles.ImageQuastion}>
+              <Image source={{uri: item.fhotos}} style={{width:80,height:80,borderRadius:50}} />
+            </View>        
+        
+            <Text style={styles.contentQuastion}>{item.title}</Text>
+          </View>
+          </Animatable.View>
+          </TouchableOpacity>
+
+        );
+      }
 // bottom sheet
   renderContent = () => {//محتوى البوتوم دراور
     return (
    <ViewScreen Go={this.props.navigation}/>// get some sections from viewscreen جلب صفحة فيوسكرين وعرض خمسة اقسام فيها 
     )
   }
-  //function for user quastion
-  QuastionUser(){
-    return(
-      <QuastionUser Fo={this.props.navigation.navigate('User')} />//الانتقال الى صفحة سؤال المستخدم 
-          )
-  }
- test(){
-   if(this.state.text !== ""){
-    this.GetQuastionDay()
-   }else{
-    alert('noooo')
-   }
- }
+
  topFunc(){
      this.setState({top:true,
                     bottom:false});
@@ -79,29 +104,42 @@ export default class Splash extends React.Component {
   this.setState({top:false,
                  bottom:true});
 }
-
+componentDidMount(){
+  setTimeout(() => {
+      this.props.navigation.navigate('Splash');
+      this.setState({ShowLogo: true})
+     }, 500)
+}
   render() {
 
     return (
       <View style={{flex:1}}>
-        <ImageBackground source={require('../Images/bg.png')}  style={{width: '100%', height: '100%'}}>
-     
+          {!this.state.ShowLogo ?
+             <ImageBackground source={require('../Images/68815.png')} style={{width:'100%',height:'100%'}}>
+              <View style={{flex:1,justifyContent:'center',alignItems:'center'}}>
+             <Image source={require('../Images/circle.jpg')} style={{width:140,height:140,borderRadius:15}} />
+               </View>
+             </ImageBackground>
 
+              :
+        <ImageBackground source={require('../Images/bg.png')}  style={{width: '100%', height: '100%'}}>
        {/*السؤال اليومي*/}
        {this.state.bottom ? 
-           <Animatable.View animation={this.state.top ? "fadeIn" : "fadeIn"} style={styles.ContainerQuastionDay}>
-         <View style={styles.borderQuastion}>
-           <View style={styles.ImageQuastion}>
-             <Image source={{uri: this.state.QuastionDay.fhotos}} style={{width:80,height:80,borderRadius:50}} />
-           </View>
-         <ScrollView>
-
-           <Text style={styles.titleQuastion}>سؤال اليوم</Text>
-           <Text style={styles.contentQuastion}>{this.state.QuastionDay.title}</Text>
-           <Text style={styles.contnetAnswer}>{this.state.QuastionDay.text}</Text>
-         </ScrollView>
-         </View>
-      </Animatable.View>
+        <Carousel
+        ref={(c) => { this._carousel = c; }}
+        data={this.state.cardsItem}
+        renderItem={this._renderItem}
+        slideStyle={{paddingTop:30}}
+        sliderHeight={Metricsh*0.80}
+        sliderWidth={Metrics-50}
+        itemHeight={Metricsh*0.75}
+        layout={'stack'}
+        layoutCardOffset={18}
+        vertical
+        firstItem={4}
+        loop
+        loopClonesPerSide={this.state.cardsItem.length}
+      />
       : 
       <Animatable.View animation={ "zoomIn"} duration={500} style={{top:80,alignItems:'center'}}>
          <Image source={require('../Images/circle.jpg')} style={{width:140,height:140,borderRadius:15}} />
@@ -143,27 +181,7 @@ export default class Splash extends React.Component {
     shadowRadius: 3,
     elevation: 3}}>
       
-      {/*
-       <View style={{flexDirection:'row',justifyContent:'space-around'}}>
-
-      <View style={{top:15}}>
-        <Image source={require('../icons/facebook.png')} style={{width:70,height:70,borderRadius:50}}/>
-      </View>
-
-      <View style={{top:15}}>
-        <Image source={require('../icons/instagram.png')} style={{width:70,height:70,borderRadius:50}}/>
-      </View>
-
-      <View style={{top:15}}>
-        <Image source={require('../icons/telegram.png')} style={{width:70,height:70,borderRadius:50}}/>
-      </View>
-
-      <View style={{top:15}}>
-        <Image source={require('../icons/youtube.png')} style={{width:70,height:70,borderRadius:50}}/>
-      </View>
-
-      </View>
-        */}
+    
     </View>
     }
     </ImageBackground>
@@ -171,6 +189,8 @@ export default class Splash extends React.Component {
 
     {/*<Text>{this.state.QuastionUser}</Text>*/}
       </ImageBackground>
+
+            }
       </View>
     )
   }
@@ -210,7 +230,7 @@ const styles = StyleSheet.create({
     fontFamily:'MOLarabic', textAlign:'center', fontSize:24,color:'#21BCBE',right:10,top:30
   },
   contentQuastion:{
-    fontFamily:'MOLarabic',fontSize:20,color:'black',margin:12,top:20
+    fontFamily:'MOLarabic',fontSize:16,color:'black',margin:12,top:20,textAlign:'center'
   },
   contnetAnswer:{
     fontFamily:'MOLarabic',fontSize:20,color:'red',margin:12
